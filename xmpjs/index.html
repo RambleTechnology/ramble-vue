@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+
+<head>
+
+</head>
+<script src="xmp-js-0.0.3/dist/xmp.iife.min.js"></script>
+<body>
+    <input type="file" >
+    <script>
+        let input = document.querySelector("input[type='file']");
+        input.addEventListener("change", (e) => {
+            let file = e.target.files[0];
+            var reader = new FileReader();
+            reader.onload = e => {
+                let xmp = new XMP(e.target.result),
+                    raw = xmp.find(),
+                    parsed = xmp.parse();
+                    console.log(raw);
+                    console.log(parsed);
+                // do what you want with `raw` or `parsed` XMP
+            };
+            reader.readAsDataURL(file);
+        })
+    </script>
+</body>
+
+
+
+
+
+</html>
