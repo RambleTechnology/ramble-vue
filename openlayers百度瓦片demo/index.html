@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="utf-8" />
+	<title>Openlayer Tile Map</title>
+	<link type="text/css" href="ol.css" rel="stylesheet" />
+	<script type="text/javascript" src="ol.js" charset="utf-8"></script>
+	<script type="text/javascript" src="bd09.js" charset="utf-8"></script>
+	<style>
+		* {
+			padding: 0;
+			margin: 0;
+		}
+
+		.span4 {
+			position: fixed;
+			top: 0;
+			left: 0;
+			z-index: 10000;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="map" style="width: 100%"></div>
+
+	<div class="span4">
+		<form>
+			<label>radius size</label>
+			<input id="radius" type="range" min="1" max="50" step="1" value="5" />
+			<label>blur size</label>
+			<input id="blur" type="range" min="1" max="50" step="1" value="15" />
+		</form>
+	</div>
+	<div id="anchor">
+		<img src="icon.png" alt="示例锚点" />
+	</div>
+	<script>
+		/*定义百度投影，这是实现无偏移加载百度地图离线瓦片核心所在。
+网上很多相关资料在用OpenLayers加载百度地图离线瓦片时都认为投影就是EPSG:3857(也就是Web墨卡托投影)。
+事实上这是错误的，因此无法做到无偏移加载。
+百度地图有自己独特的投影体系，必须在OpenLayers中自定义百度投影，才能实现无偏移加载。
+百度投影实现的核心文件为bd09.js，在迈高图官网可以找到查看这个文件。*/
+		var projBD09 = new ol.proj.Projection({
+			code: 'BD:09',
+			extent: [-20037726.37, -11708041.66, 20037726.37, 12474104.17],
+			units: 'm',
+			axisOrientation: 'neu',
+			global: false,
+		})
+
+		ol.proj.addProjection(projBD09)
+		ol.proj.addCoordinateTransforms(
+			'EPSG:4326',
+			'BD:09',
+			function (coordinate) {
+				return lngLatToMercator(coordinate)
+			},
+			function (coordinate) {
+				return mercatorToLngLat(coordinate)
+			}
+		)
+
+		/*定义百度地图分辨率与瓦片网格*/
+		var resolutions = []
+		for (var i = 0; i <= 18; i++) {
+			resolutions[i] = Math.pow(2, 18 - i)
+		}
+
+		var tilegrid = new ol.tilegrid.TileGrid({
+			origin: [0, 0],
+			resolutions: resolutions,
+		})
+
+		/*加载百度地图离线瓦片不能用ol.source.XYZ，ol.source.XYZ针对谷歌地图（注意：是谷歌地图）而设计，
+而百度地图与谷歌地图使用了不同的投影、分辨率和瓦片网格。因此这里使用ol.source.TileImage来自行指定
+投影、分辨率、瓦片网格。*/
+		var source = new ol.source.TileImage({
+			projection: 'BD:09',
+			tileGrid: tilegrid,
+			tileUrlFunction: function (tileCoord, pixelRatio, proj) {
+				//openlayer5的版本
+				var z = tileCoord[0]
+				var x = tileCoord[1]
+				var y = tileCoord[2]
+				// return "http://192.168.1.13:8080/mapImg/2/V1/"+z+"/"+x+"/"+y+".png";
+				//return 'tiles/' + z + '/' + x + '/' + y + '.png';
+				// return (
+				// 	'http://192.168.1.188/map/无锡-深/offlinemap/tiles/' +
+				// 	z +
+				// 	'/' +
+				// 	x +
+				// 	'/' +
+				// 	y +
+				// 	'.png'
+				// )
+				return "http://maponline0.bdimg.com/tile/?qt=vtile&x=" + x + "&y=" + y + "&z=" + z + "&styles=pl&scaler=1&udt=20210506&from=jsapi3_0";
+
+				//openlayers6的版本
+				//let z = tileCoord[0];
+				// let x = tileCoord[1];
+				//let y = -tileCoord[2]-1;
+				// if(x<0)  x = "M"+(-x);
+				// if(y<0) y = "M"+(-y);
+			},
+		})
+
+		var mapLayer = new ol.layer.Tile({
+			source: source,
+		})
+
+		var point = [120.620597, 31.337587]
+
+		var fence = [
+			[116.350574, 39.868696],
+			[116.349043, 39.870013],
+			[116.349479, 39.873594],
+			[116.344285, 39.87365],
+			[116.34392, 39.875255],
+			[116.342232, 39.876133],
+			[116.334532, 39.875133],
+			[116.326363, 39.876854],
+			[116.321468, 39.875186],
+			[116.320856, 39.876057],
+			[116.320762, 39.88147],
+			[116.32201, 39.88154],
+			[116.321916, 39.88387],
+			[116.323422, 39.884553],
+			[116.323481, 39.887319],
+			[116.324319, 39.887369],
+			[116.324189, 39.88968],
+			[116.326686, 39.889733],
+			[116.325756, 39.891367],
+			[116.325809, 39.897071],
+			[116.337302, 39.897384],
+			[116.337058, 39.898703],
+			[116.335353, 39.898443],
+			[116.335971, 39.903427],
+			[116.334814, 39.905248],
+			[116.335346, 39.909112],
+			[116.33445, 39.911958],
+			[116.334704, 39.922818],
+			[116.333061, 39.938558],
+			[116.330904, 39.938693],
+			[116.330739, 39.939982],
+			[116.329103, 39.940126],
+			[116.327955, 39.942372],
+			[116.332531, 39.944126],
+			[116.338004, 39.942908],
+			[116.3389, 39.941951],
+			[116.339683, 39.943055],
+			[116.341153, 39.941955],
+			[116.343651, 39.943279],
+			[116.346626, 39.943619],
+			[116.350376, 39.942931],
+			[116.352366, 39.943824],
+			[116.35082, 39.946908],
+			[116.352082, 39.951011],
+			[116.354088, 39.95137],
+			[116.355251, 39.947335],
+			[116.356432, 39.943919],
+			[116.360606, 39.945076],
+			[116.371964, 39.948596],
+			[116.370382, 39.967908],
+			[116.380408, 39.968173],
+			[116.380912, 39.972718],
+			[116.394094, 39.972864],
+			[116.394163, 39.969392],
+			[116.39001, 39.968404],
+			[116.390279, 39.966212],
+			[116.388248, 39.965831],
+			[116.388309, 39.964969],
+			[116.38863, 39.964537],
+			[116.389295, 39.964328],
+			[116.389258, 39.963527],
+			[116.388559, 39.963552],
+			[116.388642, 39.963083],
+			[116.38802, 39.963102],
+			[116.387663, 39.960923],
+			[116.386776, 39.957016],
+			[116.39333, 39.957193],
+			[116.394272, 39.940632],
+			[116.396166, 39.94006],
+			[116.396702, 39.928311],
+			[116.39923, 39.928129],
+			[116.399464, 39.923568],
+			[116.396823, 39.923467],
+			[116.396823, 39.922529],
+			[116.392185, 39.922427],
+			[116.392635, 39.912921],
+			[116.392062, 39.912891],
+			[116.391836, 39.911232],
+			[116.392678, 39.91122],
+			[116.392252, 39.907882],
+			[116.395562, 39.907992],
+			[116.396021, 39.899706],
+			[116.397697, 39.898579],
+			[116.3991, 39.872202],
+			[116.350574, 39.868696],
+		];
+		const path = [];
+		// fence.forEach(function (item) {
+		// 	console.log("围栏信息：" + JSON.stringify(item));
+		// 	var lonlat = item.join(",");
+		// 	path.push(ol.fromLonLat(lonlat.split(",")));
+		// });
+		// let feature = new Feature(new Polygon([path]));
+		// let S = new VectorSource({
+		// 	features: [feature],
+		// });
+		// let v = new VectorLayer({
+		// 	S,
+		// 	style: new Style({
+		// 		fill: new Fill({
+		// 			color: "rgba(49,173,252, 0.2)",
+		// 		}),
+		// 		stroke: new Stroke({
+		// 			color: "#0099FF",
+		// 			width: 3,
+		// 		}),
+		// 		image: new sCircle({
+		// 			radius: 7,
+		// 			fill: new Fill({
+		// 				color: "#0099FF",
+		// 			}),
+		// 		}),
+		// 	}),
+		// });
+
+		var map = new ol.Map({
+			layers: [mapLayer],
+			view: new ol.View({
+				center: ol.proj.transform(point, 'EPSG:4326', 'BD:09'),
+				projection: 'BD:09',
+				zoom: 14,
+			}),
+			target: 'map',
+		})
+
+		//map.addLayer(v);
+		var heatData = {
+			type: 'FeatureCollection',
+			features: [
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [149.042007, -35.349998],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-71.660004, -35.423],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [174.315994, -35.721001],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-64.288002, -36.627998],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-73.055, -36.826],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [174.761002, -36.903999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [176.154999, -37.700001],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [175.272995, -37.776001],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [145.075104, -37.852959],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [178.016006, -38.659],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-62.274067, -38.725273],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-72.575996, -38.729],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-68.283333, -38.944908],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [174.078003, -39.07],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [176.841003, -39.639999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [175.035004, -39.93],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-62.995026, -40.815025],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [173.248001, -41.297001],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-72.952003, -41.474998],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [171.207001, -42.472],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [147.291, -42.851002],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-65.099998, -43.299999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [172.638, -43.523998],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-72.702003, -45.402],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-67.5, -45.830002],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [170.473999, -45.883999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [168.373001, -46.412998],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-69.228996, -51.625],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-57.848999, -51.701],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-70.934654, -53.166161],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-68.297997, -54.792],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [129.054993, 35.158001],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [23.331871, 42.707264],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-15.598, 11.864],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [147.147949, -9.497187],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-74.080513, 4.63022],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [12.55, 55.720001],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [103.831787, 1.268858],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [126.935249, 37.542351],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [16.320986, 48.202118],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-58.449841, -34.622501],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [4.368, 50.837002],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [96.82608, -12.157536],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-2.973783, 43.282158],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [126.907997, 35.153],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [128.591003, 35.863998],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [100.310997, 5.364],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [165.5, -21.5],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [166.916702, -0.5167],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [51.448002, 35.773998],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [49.700001, 34.083332],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-5.3167, 35.883301],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [130.933304, 33.950001],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [136.761993, 35.41],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [77.216751, 28.568726],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [35.22522, 31.773746],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [17.934, 62.633999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [15.638, 58.402],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [14.178, 57.785999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [44.233002, 46.266998],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [90.374001, 22.702999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [159.983002, 59.083],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [114.532997, 51.167],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [104.699997, 52.833],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [100.282997, 64.333],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [86.217003, 69.449997],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [69.0, 61.016998],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [54.667, 59.016998],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [53.033001, 67.616997],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [44.783001, 43.233002],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [132.899994, 48.817001],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [34.333, 61.783001],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: { type: 'Point', coordinates: [32.0, 63.0] },
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [23.708, 70.677002],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-53.553001, 69.244003],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-133.705994, 68.365997],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [64.040001, 67.504997],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-21.895, 64.135002],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-149.897995, 61.202999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-66.810997, 54.800999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-130.309998, 54.320999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-2.971, 53.423],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [22.311001, 48.622002],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [100.123001, 46.692001],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-66.068001, 45.264],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [38.960999, 45.036999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [34.104, 44.962002],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [42.063, 44.282001],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [71.371002, 42.889],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [109.807999, 40.659],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [23.653, 37.944],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [39.173, 21.542999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-96.123001, 19.184999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [42.507999, 18.219999],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-15.978, 18.084],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [74.843002, 12.869],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-10.797, 6.301],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [7.068, 6.215],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [9.454, 0.391],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [15.299, -4.321],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [34.743999, -4.817],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-77.044998, -12.082],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-57.283001, -25.406],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-71.332001, -29.959],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [46.659145, 61.259964],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [174.80722, -41.334835],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [86.599289, 67.493851],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [177.480255, 64.755272],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [17.991455, 59.331165],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [76.280418, 9.970155],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-60.281559, 53.29509],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-2.674783, 42.850159],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [-68.541466, 63.755356],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [51.141739, 43.690456],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: {
+						type: 'Point',
+						coordinates: [20.412556, 44.799683],
+					},
+				},
+				{
+					type: 'Feature',
+					properties: {},
+					geometry: { type: 'Point', coordinates: [19.4, 42.5] },
+				},
+			],
+		}
+		var blur = document.getElementById('blur')
+		var radius = document.getElementById('radius')
+		blur.addEventListener('input', function () {
+			vector.setBlur(parseInt(blur.value, 5))
+		})
+
+		radius.addEventListener('input', function () {
+			vector.setRadius(parseInt(radius.value, 10))
+		})
+		//矢量图层 获取gejson数据
+		var vectorSource = new ol.source.Vector({
+			features: new ol.format.GeoJSON().readFeatures(heatData, {
+				dataProjection: 'EPSG:4326',
+				featureProjection: 'EPSG:3857',
+			}),
+		})
+		// Heatmap热力图
+		var vector = new ol.layer.Heatmap({
+			source: vectorSource,
+			blur: parseInt(blur.value, 10),
+			radius: parseInt(radius.value, 10),
+		})
+		map.addLayer(vector)
+
+		// 你可以给元素添加任意的内容或属性或样式，也可以给元素绑定事件
+		let el = document.createElement('div')
+		let marker = new ol.Overlay({
+			element: document.getElementById('anchor'), // 要显示的元素
+			position: ol.proj.fromLonLat(point, 'BD:09'), // 地图投影的位置
+			offset: [-17, -17], // 元素显示的像素偏移量
+			autoPan: true, // 自动移动地图以完整的显示元素
+		})
+
+		// 添加到地图
+		map.addOverlay(marker)
+		// 从地图上删除
+		// map.removeOverlay(marker)
+
+		//火星坐标系转百度坐标系
+		function tobdMap(coordinate) {
+			let x_pi = (3.14159265358979324 * 3000.0) / 180.0
+			let x = coordinate[0]
+			let y = coordinate[1]
+			let z = Math.sqrt(x * x + y * y) + 0.00002 * Math.sin(y * x_pi)
+			let theta = Math.atan2(y, x) + 0.000003 * Math.cos(x * x_pi)
+			let lngs = z * Math.cos(theta) + 0.0065
+			let lats = z * Math.sin(theta) + 0.006
+			let zb = []
+			zb[0] = lngs
+			zb[1] = lats
+			return zb
+		}
+	</script>
+</body>
+
+</html>
